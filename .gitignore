@@ -1,0 +1,9 @@
+.solargraph.yml
+db.sqlite
+Gemfile.lock
+
+secret/*
+storage/.DS_Store
+
+storage/*
+.DS_Store
