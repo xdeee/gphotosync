@@ -30,7 +30,7 @@ class MediaStorage
   end
 
   def store(remote_item)
-    @logger.debug "storing item #{remote_item[:filename]}"
+    @logger.debug "Checking item #{remote_item[:filename]}"
 
     local_item = get_local_item(remote_item[:id])
     return unless local_item.nil?
@@ -65,9 +65,11 @@ class MediaStorage
     return nil if item.nil?
 
     fname = File.join(@path, item[:filename])
-    return nil unless File.exist?(fname)
+    return item if File.exist?(fname)
 
-    item
+    @logger.debug "#{item[:filename]} found in the DB but not on the file system"
+    remove_local_item(item)
+    nil
   end
 
   def remove_local_item(local_item)
@@ -83,7 +85,7 @@ class MediaStorage
   def store_file(remote_item)
     filename = prepare_folder(remote_item)
 
-    @logger.debug('Requesting remote file from Google Photo')
+    @logger.debug("Requesting remote file #{remote_item[:filename]}from Google Photo")
     resp = Net::HTTP.get_response(URI(remote_item[:baseUrl] + '=d'))
 
     unless resp.is_a?(Net::HTTPSuccess)
@@ -93,7 +95,7 @@ class MediaStorage
 
     File.open(filename, 'wb') do |f|
       f.write(resp.body)
-      @logger.debug
+      @logger.debug "File written to #{filename}"
       local_item = remote_item.slice(:id, :filename)
 
       fname = File.join(get_year(remote_item), remote_item[:filename])

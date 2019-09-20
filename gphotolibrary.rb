@@ -29,7 +29,6 @@ class GooglePhoto
     @logger = Logger.new(STDOUT)
     @logger.level = Logger::DEBUG
     @media_items = []
-    @storage = MediaStorage.new('./storage')
   end
 
   def request_media_items
@@ -110,3 +109,12 @@ class GooglePhoto
   attr_accessor :credentials
   attr_reader :logger
 end
+
+gl = GooglePhoto.new
+storage = MediaStorage.new('./storage')
+
+gl.request_media_items
+gl.media_items.each { |i| storage.store i }
+
+ids = gl.media_items.map { |i| i[:id] }
+storage.sync_local_state(ids)
