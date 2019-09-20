@@ -31,18 +31,18 @@ class MediaStorage
 
   def store(remote_item)
     @logger.debug "storing item #{remote_item[:filename]}"
-    local_item = get_local_item(remote_item[:id])
-    hash = get_hash(remote_item)
 
-    if local_item.nil?
-      @logger.debug "Item #{remote_item[:filename]} not found in DB, storing..."
-      store_file(remote_item)
-    elsif local_item[:hash] != hash
-      @logger.debug "Found local item: #{local_item.inspect}"
-      @logger.debug "Item #{remote_item[:filename]} has changed, removing local"
-      remove_local_item(local_item)
-      store_file(remote_item)
-    end
+    local_item = get_local_item(remote_item[:id])
+    return unless local_item.nil?
+
+    @logger.debug "Item #{remote_item[:filename]} not found locally"
+    store_file(remote_item)
+  end
+
+  def sync_local_state(ids)
+    items_to_delete = @items.all.reject { |i| ids.include? i[:id] }
+
+    items_to_delete.each { |i| remove_local_item(i) }
   end
 
   ##
@@ -57,16 +57,23 @@ class MediaStorage
       hash: item[:hash],
       filename: item[:filename]
     )
-    @logger.debug "#{result} record has been written"
+    @logger.debug "Item ##{result} has been written"
   end
 
   def get_local_item(id)
-    @items.where(id: id).first
+    item = @items.where(id: id).first
+    return nil if item.nil?
+
+    fname = File.join(@path, item[:filename])
+    return nil unless File.exist?(fname)
+
+    item
   end
 
-  def remove_local_item(item)
-    @items.where(id: item[:id]).delete
-    filename = File.join(@path, item[:filename])
+  def remove_local_item(local_item)
+    @logger.debug "Removing local item #{local_item[:filename]}"
+    @items.where(id: local_item[:id]).delete
+    filename = File.join(@path, local_item[:filename])
     File.delete(filename) if File.exist?(filename)
 
     dir = filename[%r{(.+)\/}]
@@ -74,40 +81,39 @@ class MediaStorage
   end
 
   def store_file(remote_item)
-    year = get_year(remote_item).to_s
-    dir = File.join(@path, year)
-    Dir.mkdir dir unless Dir.exist? dir
-    filename = File.join(dir, remote_item[:filename])
+    filename = prepare_folder(remote_item)
+
+    @logger.debug('Requesting remote file from Google Photo')
+    resp = Net::HTTP.get_response(URI(remote_item[:baseUrl] + '=d'))
+
+    unless resp.is_a?(Net::HTTPSuccess)
+      @logger.error "Error code #{resp.code}\n#{resp.body}"
+      return
+    end
 
     File.open(filename, 'wb') do |f|
-      f.write get_hash(remote_item)
-      local_item = remote_item.slice(:id, :hash, :filename)
-      local_item[:filename] = filename
+      f.write(resp.body)
+      @logger.debug
+      local_item = remote_item.slice(:id, :filename)
+
+      fname = File.join(get_year(remote_item), remote_item[:filename])
+      local_item[:filename] = fname
       add_local_item(local_item)
     end
   end
 
-  def get_year(item)
-    date = DateTime.parse item[:mediaMetadata][:creationTime]
-    date.year
-  rescue ArgumentError, NoMethodError
-    ''
+  def prepare_folder(remote_item)
+    year = get_year(remote_item)
+    dir = File.join(@path, year)
+    Dir.mkdir dir unless Dir.exist? dir
+
+    File.join(dir, remote_item[:filename])
   end
 
-  ##
-  # Calculate hash of item
-  # @params [Hash] item remote or local item
-  # @return [String] hash
-  def get_hash(item)
-    hash = item[:hash]
-
-    if hash.nil?
-      hash = Digest::MD5.hexdigest item[:baseUrl]
-      item[:hash] = hash
-    end
-
-    @logger.debug "get_hash for #{item[:filename]}: #{hash} "
-
-    hash
+  def get_year(item)
+    date = DateTime.parse item[:mediaMetadata][:creationTime]
+    date.year.to_s
+  rescue ArgumentError, NoMethodError
+    ''
   end
 end
