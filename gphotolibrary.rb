@@ -57,6 +57,8 @@ class GooglePhoto
   def api_query(endpoint, params = {})
     raise 'Not authorized yet' if credentials.nil?
 
+    refresh_credentials
+
     logger.debug "Requesting to: #{endpoint} with #{params.inspect}"
     params[:access_token] = credentials.access_token
     params[:pageSize] ||= QUERY_PAGESIZE
@@ -72,6 +74,10 @@ class GooglePhoto
     JSON.parse(resp.body, symbolize_names: true)
   end
 
+  def refresh_credentials
+    @credentials.refresh! if @credentials.expired?
+  end
+
   ##
   # Ensure valid credentials, either by restoring from the saved credentials
   # files or intitiating an OAuth2 authorization. If authorization is required,
@@ -85,6 +91,7 @@ class GooglePhoto
     user_id = 'default'
 
     creds = authorizer.get_credentials user_id
+    creds&.refresh!
     creds = authorize_interactive(authorizer) if creds.nil?
 
     creds
