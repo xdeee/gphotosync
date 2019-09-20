@@ -10,6 +10,10 @@ require 'logger'
 class MediaStorage
   DB = Sequel.connect('sqlite://db.sqlite')
 
+  ##
+  # That's here for debug reasons
+  attr_reader :items
+
   def initialize(path, logger = nil)
     DB.create_table? :items do
       String :id, primary_key: true, index: true, unique: true
@@ -41,6 +45,9 @@ class MediaStorage
     end
   end
 
+  ##
+  # Private methods
+  ##
   private
 
   def add_item(item)
