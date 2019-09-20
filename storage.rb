@@ -31,7 +31,7 @@ class MediaStorage
 
   def store(remote_item)
     @logger.debug "storing item #{remote_item[:filename]}"
-    local_item = get_item(remote_item[:id])
+    local_item = get_local_item(remote_item[:id])
     hash = get_hash(remote_item)
 
     if local_item.nil?
@@ -39,8 +39,8 @@ class MediaStorage
       store_file(remote_item)
     elsif local_item[:hash] != hash
       @logger.debug "Found local item: #{local_item.inspect}"
-      @logger.debug "Item ##{remote_item[:filename]} has changed, removing local copy..."
-      remove_local(local_item)
+      @logger.debug "Item #{remote_item[:filename]} has changed, removing local"
+      remove_local_item(local_item)
       store_file(remote_item)
     end
   end
@@ -50,7 +50,7 @@ class MediaStorage
   ##
   private
 
-  def add_item(item)
+  def add_local_item(item)
     @logger.debug "Putting #{item[:filename]} in the DB..."
     result = @items.insert(
       id: item[:id],
@@ -60,11 +60,11 @@ class MediaStorage
     @logger.debug "#{result} record has been written"
   end
 
-  def get_item(id)
+  def get_local_item(id)
     @items.where(id: id).first
   end
 
-  def remove_local(item)
+  def remove_local_item(item)
     @items.where(id: item[:id]).delete
     filename = File.join(@path, item[:filename])
     File.delete(filename) if File.exist?(filename)
@@ -73,16 +73,17 @@ class MediaStorage
     Dir.rmdir(dir) if Dir.exist?(dir) && Dir.empty?(dir)
   end
 
-  def store_file(item)
-    year = get_year(item).to_s
+  def store_file(remote_item)
+    year = get_year(remote_item).to_s
     dir = File.join(@path, year)
     Dir.mkdir dir unless Dir.exist? dir
+    filename = File.join(dir, remote_item[:filename])
 
-    File.open(File.join(dir, item[:filename]), 'wb') do |f|
-      f.write get_hash(item)
-      local_item = item.slice(:id, :hash, :filename)
-      local_item[:filename] = year + '/' + item[:filename]
-      add_item(local_item)
+    File.open(filename, 'wb') do |f|
+      f.write get_hash(remote_item)
+      local_item = remote_item.slice(:id, :hash, :filename)
+      local_item[:filename] = filename
+      add_local_item(local_item)
     end
   end
 
@@ -93,6 +94,10 @@ class MediaStorage
     ''
   end
 
+  ##
+  # Calculate hash of item
+  # @params [Hash] item remote or local item
+  # @return [String] hash
   def get_hash(item)
     hash = item[:hash]
 
