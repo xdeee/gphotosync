@@ -57,7 +57,7 @@ class MediaStorage
       hash: item[:hash],
       filename: item[:filename]
     )
-    @logger.debug "Item ##{result} has been written"
+    @logger.debug "Item ##{result} has been stored"
   end
 
   def get_local_item(id)
@@ -85,7 +85,7 @@ class MediaStorage
   def store_file(remote_item)
     filename = prepare_folder(remote_item)
 
-    @logger.debug("Requesting remote file #{remote_item[:filename]}from Google Photo")
+    @logger.debug("Requesting remote file #{remote_item[:filename]}")
     resp = Net::HTTP.get_response(URI(remote_item[:baseUrl] + '=d'))
 
     unless resp.is_a?(Net::HTTPSuccess)
