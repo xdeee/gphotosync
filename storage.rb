@@ -86,7 +86,12 @@ class MediaStorage
     filename = prepare_folder(remote_item)
 
     @logger.debug("Requesting remote file #{remote_item[:filename]}")
-    resp = Net::HTTP.get_response(URI(remote_item[:baseUrl] + '=d'))
+    option = remote_item[:mimeType].start_with?('video') ? '=dv' : '=d'
+    resp = Net::HTTP.get_response(URI(remote_item[:baseUrl] + option))
+
+    if resp.is_a? Net::HTTPRedirection
+      resp = Net::HTTP.get_response(URI(resp['location']))
+    end
 
     unless resp.is_a?(Net::HTTPSuccess)
       @logger.error "Error code #{resp.code}\n#{resp.body}"
