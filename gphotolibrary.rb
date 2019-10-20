@@ -10,11 +10,12 @@ require_relative 'storage.rb'
 # Main class to access google Photo API
 class GooglePhoto
   OOB_URI = 'urn:ietf:wg:oauth:2.0:oob'
+  PROFILE_PATH = File.join(Dir.home, '.gphotosync')
   CREDENTIALS_PATH = './secret/credentials.json'
   # The file token.yaml stores the user's access and refresh tokens, and is
   # created automatically when the authorization flow completes for the first
   # time.
-  TOKEN_PATH = './secret/token.yaml'
+  TOKEN_PATH = File.join(PROFILE_PATH, 'secret/token.yaml')
   SCOPE = ['https://www.googleapis.com/auth/photoslibrary.readonly'].freeze
   QUERY_LIMIT = 800
   QUERY_PAGESIZE = 100
@@ -25,10 +26,13 @@ class GooglePhoto
   attr_reader :media_items, :storage
 
   def initialize
-    @credentials = authorize
     @logger = Logger.new(STDOUT)
     @logger.level = Logger::DEBUG
     @media_items = []
+
+    Dir.mkdir PROFILE_PATH unless Dir.exist? PROFILE_PATH
+
+    @credentials = authorize
   end
 
   def request_media_items
@@ -84,6 +88,9 @@ class GooglePhoto
   #
   # @return [Google::Auth::UserRefreshCredentials] OAuth2 credentials
   def authorize
+    secret_path  = File.join(PROFILE_PATH, 'secret')
+    Dir.mkdir secret_path unless Dir.exist? secret_path
+
     client_id = Google::Auth::ClientId.from_file CREDENTIALS_PATH
     token_store = Google::Auth::Stores::FileTokenStore.new file: TOKEN_PATH
     authorizer = Google::Auth::UserAuthorizer.new client_id, SCOPE, token_store
@@ -111,7 +118,7 @@ class GooglePhoto
 end
 
 gl = GooglePhoto.new
-storage = MediaStorage.new('./storage', 'default')
+storage = MediaStorage.new(File.join(GooglePhoto::PROFILE_PATH, 'storage'), 'default')
 
 gl.request_media_items
 gl.media_items.each { |i| storage.store i }

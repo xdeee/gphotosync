@@ -15,13 +15,14 @@ class MediaStorage
   attr_reader :items
 
   def initialize(path, _client_id, logger = nil)
-    setup_db(_client_id)
 
     @path = path
     Dir.mkdir path unless Dir.exist? path
 
     @logger = logger
     @logger ||= Logger.new(STDOUT, level: Logger::DEBUG)
+
+    setup_db(_client_id)
   end
 
   def store(remote_item)
@@ -66,7 +67,7 @@ class MediaStorage
     @logger.debug "Putting #{item[:filename]} in the DB..."
     result = @items.insert(
       id: item[:id],
-      hash: item[:hash],
+      #hash: item[:hash],
       filename: item[:filename]
     )
     @logger.debug "Item ##{result} has been stored"
