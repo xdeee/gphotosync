@@ -111,7 +111,7 @@ class GooglePhoto
 end
 
 gl = GooglePhoto.new
-storage = MediaStorage.new('./storage')
+storage = MediaStorage.new('./storage', 'default')
 
 gl.request_media_items
 gl.media_items.each { |i| storage.store i }

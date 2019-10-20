@@ -14,17 +14,12 @@ class MediaStorage
   # That's here for debug reasons
   attr_reader :items
 
-  def initialize(path, logger = nil)
-    DB.create_table? :items do
-      String :id, primary_key: true, index: true, unique: true
-      String :hash
-      String :filename
-    end
+  def initialize(path, _client_id, logger = nil)
+    setup_db(_client_id)
 
     @path = path
     Dir.mkdir path unless Dir.exist? path
 
-    @items = DB[:items]
     @logger = logger
     @logger ||= Logger.new(STDOUT, level: Logger::DEBUG)
   end
@@ -49,6 +44,23 @@ class MediaStorage
   # Private methods
   ##
   private
+
+  def setup_db(client_id)
+    DB.create_table? :items do
+      String :id, primary_key: true, index: true, unique: true
+      String :client_id
+      String :filename
+    end
+
+    @items = DB[:items]
+    @client_id = client_id
+
+    remove_wrong_client_items
+  end
+
+  def remove_wrong_client_items
+    @logger.warn "Removing items if client is changed is NOT IMPLEMENTED"
+  end
 
   def add_local_item(item)
     @logger.debug "Putting #{item[:filename]} in the DB..."
