@@ -14,15 +14,14 @@ class MediaStorage
   # That's here for debug reasons
   attr_reader :items
 
-  def initialize(path, _client_id, logger = nil)
-
+  def initialize(path, client_id, logger = nil)
     @path = path
     Dir.mkdir path unless Dir.exist? path
 
     @logger = logger
     @logger ||= Logger.new(STDOUT, level: Logger::DEBUG)
 
-    setup_db(_client_id)
+    setup_db(client_id)
   end
 
   def store(remote_item)
@@ -60,14 +59,13 @@ class MediaStorage
   end
 
   def remove_wrong_client_items
-    @logger.warn "Removing items if client is changed is NOT IMPLEMENTED"
+    @logger.warn 'Removing items if client is changed is NOT IMPLEMENTED'
   end
 
   def add_local_item(item)
     @logger.debug "Putting #{item[:filename]} in the DB..."
     result = @items.insert(
       id: item[:id],
-      #hash: item[:hash],
       filename: item[:filename]
     )
     @logger.debug "Item ##{result} has been stored"
