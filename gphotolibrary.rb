@@ -17,7 +17,7 @@ class GooglePhoto
   # time.
   TOKEN_PATH = File.join(PROFILE_PATH, 'secret/token.yaml')
   SCOPE = ['https://www.googleapis.com/auth/photoslibrary.readonly'].freeze
-  QUERY_LIMIT = 800
+  QUERY_LIMIT = 100_000_000
   QUERY_PAGESIZE = 100
 
   # API endpoints
@@ -27,7 +27,7 @@ class GooglePhoto
 
   def initialize
     @logger = Logger.new(STDOUT)
-    @logger.level = Logger::DEBUG
+    @logger.level = Logger::INFO
     @media_items = []
 
     Dir.mkdir PROFILE_PATH unless Dir.exist? PROFILE_PATH
@@ -44,12 +44,13 @@ class GooglePhoto
       items = api_query(API_LIST_MEDIA_ITEMS,
                         pageSize: QUERY_PAGESIZE, pageToken: page_token)
       media_items.push(*items[:mediaItems])
+      @logger.info "Requesting in process - got #{media_items.length} items"
 
-      limit -= QUERY_PAGESIZE
+      limit -= items[:mediaItems].length
       page_token = items[:nextPageToken]
     end
 
-    logger.debug "Got #{media_items.length} item(s)"
+    logger.info "Got #{media_items.length} item(s)"
     logger.debug(media_items.map { |item| item[:filename] })
 
     media_items.length
@@ -88,7 +89,7 @@ class GooglePhoto
   #
   # @return [Google::Auth::UserRefreshCredentials] OAuth2 credentials
   def authorize
-    secret_path  = File.join(PROFILE_PATH, 'secret')
+    secret_path = File.join(PROFILE_PATH, 'secret')
     Dir.mkdir secret_path unless Dir.exist? secret_path
 
     client_id = Google::Auth::ClientId.from_file CREDENTIALS_PATH
@@ -118,10 +119,8 @@ class GooglePhoto
 end
 
 gl = GooglePhoto.new
-storage = MediaStorage.new(File.join(GooglePhoto::PROFILE_PATH, 'storage'), 'default')
+storage_path = File.join(GooglePhoto::PROFILE_PATH, 'storage')
+storage = MediaStorage.new(storage_path)
 
 gl.request_media_items
-gl.media_items.each { |i| storage.store i }
-
-ids = gl.media_items.map { |i| i[:id] }
-storage.sync_local_state(ids)
+storage.sync_state(gl.media_items)

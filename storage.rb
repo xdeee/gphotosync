@@ -14,14 +14,39 @@ class MediaStorage
   # That's here for debug reasons
   attr_reader :items
 
-  def initialize(path, client_id, logger = nil)
+  def initialize(path, logger = nil)
     @path = path
     Dir.mkdir path unless Dir.exist? path
 
     @logger = logger
-    @logger ||= Logger.new(STDOUT, level: Logger::DEBUG)
+    @logger ||= Logger.new(STDOUT, level: Logger::INFO)
 
-    setup_db(client_id)
+    setup_db
+  end
+
+  def sync_state(remote_items)
+    remote_items.each do |item|
+      store item
+    end
+
+    ids = remote_items.map { |i| i[:id] }
+    items_to_delete = @items.all.reject { |i| ids.include? i[:id] }
+    @logger.info "#{items_to_delete.length} item(s) going to be deleted"
+    items_to_delete.each { |i| remove_local_item(i) }
+  end
+
+  ##
+  # Private methods
+  ##
+  private
+
+  def setup_db
+    DB.create_table? :items do
+      String :id, primary_key: true, index: true, unique: true
+      String :filename
+    end
+
+    @items = DB[:items]
   end
 
   def store(remote_item)
@@ -32,34 +57,6 @@ class MediaStorage
 
     @logger.debug "Item #{remote_item[:filename]} not found locally"
     store_file(remote_item)
-  end
-
-  def sync_local_state(ids)
-    items_to_delete = @items.all.reject { |i| ids.include? i[:id] }
-
-    items_to_delete.each { |i| remove_local_item(i) }
-  end
-
-  ##
-  # Private methods
-  ##
-  private
-
-  def setup_db(client_id)
-    DB.create_table? :items do
-      String :id, primary_key: true, index: true, unique: true
-      String :client_id
-      String :filename
-    end
-
-    @items = DB[:items]
-    @client_id = client_id
-
-    remove_wrong_client_items
-  end
-
-  def remove_wrong_client_items
-    @logger.warn 'Removing items if client is changed is NOT IMPLEMENTED'
   end
 
   def add_local_item(item)
@@ -96,7 +93,7 @@ class MediaStorage
   def store_file(remote_item)
     filename = prepare_folder(remote_item)
 
-    @logger.debug("Requesting remote file #{remote_item[:filename]}")
+    @logger.info "Requesting remote file #{remote_item[:filename]}"
     option = remote_item[:mimeType].start_with?('video') ? '=dv' : '=d'
     resp = Net::HTTP.get_response(URI(remote_item[:baseUrl] + option))
 
