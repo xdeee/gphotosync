@@ -19,7 +19,7 @@ class MediaStorage
     Dir.mkdir path unless Dir.exist? path
 
     @logger = logger
-    @logger ||= Logger.new(STDOUT, level: Logger::INFO)
+    @logger ||= Logger.new(STDOUT, level: Logger::DEBUG)
 
     setup_db
   end

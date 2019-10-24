@@ -27,7 +27,7 @@ class GooglePhoto
 
   def initialize
     @logger = Logger.new(STDOUT)
-    @logger.level = Logger::INFO
+    @logger.level = Logger::DEBUG
     @media_items = []
 
     Dir.mkdir PROFILE_PATH unless Dir.exist? PROFILE_PATH
