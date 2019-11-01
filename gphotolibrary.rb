@@ -5,6 +5,7 @@ require 'googleauth/stores/file_token_store'
 require 'fileutils'
 require 'net/http'
 require 'logger'
+require 'optparse'
 require_relative 'storage.rb'
 
 # Main class to access google Photo API
@@ -118,8 +119,18 @@ class GooglePhoto
   attr_reader :logger
 end
 
+storage_path ||= File.join(GooglePhoto::PROFILE_PATH, 'storage')
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: ruby #{__FILE__} [options]"
+
+  opts.on('-s', '--storage STORAGEPATH', 'Set path to storage') do |path|
+    storage_path = path
+  end
+end.parse!
+
 gl = GooglePhoto.new
-storage_path = File.join(GooglePhoto::PROFILE_PATH, 'storage')
+
 storage = MediaStorage.new(storage_path)
 
 gl.request_media_items
