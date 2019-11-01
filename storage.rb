@@ -3,6 +3,8 @@
 require 'sequel'
 require 'net/http'
 require 'logger'
+require 'date'
+require 'time'
 
 ##
 # MediaStorage class
@@ -107,6 +109,7 @@ class MediaStorage
     end
 
     File.open(filename, 'wb') do |f|
+      update_ctime(f, remote_item)
       f.write(resp.body)
       @logger.debug "File written to #{filename}"
       local_item = remote_item.slice(:id, :filename)
@@ -123,6 +126,13 @@ class MediaStorage
     Dir.mkdir dir unless Dir.exist? dir
 
     File.join(dir, remote_item[:filename])
+  end
+
+  def update_ctime(file, item)
+    date = Time.parse item[:mediaMetadata][:creationTime]
+    File.utime(file.mtime, date, file)
+  rescue ArgumentError, NoMethodError
+    ''
   end
 
   def get_year(item)
