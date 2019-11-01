@@ -52,7 +52,6 @@ class GooglePhoto
     end
 
     logger.info "Got #{media_items.length} item(s)"
-    logger.debug(media_items.map { |item| item[:filename] })
 
     media_items.length
   end
