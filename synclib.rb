@@ -32,7 +32,7 @@ class LibrarySync
 
   def sync_deleted(all_items)
     ids = all_items.map { |i| i[:id] }
-    items_to_delete = @storage.get_all.reject { |i| ids.include? i[:id] }
+    items_to_delete = @storage.all.reject { |i| ids.include? i[:id] }
     @logger.info "#{items_to_delete.length} item(s) going to be deleted"
     items_to_delete.each { |item| @storage.remove item }
   end

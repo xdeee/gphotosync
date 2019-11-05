@@ -110,7 +110,6 @@ class GooglePhoto
 
     resp = Net::HTTP.get_response(uri)
 
-    logger.debug "Got response with code: #{resp.code}"
     raise "Response error:\n #{resp.body}" unless resp.is_a?(Net::HTTPSuccess)
 
     JSON.parse(resp.body, symbolize_names: true)

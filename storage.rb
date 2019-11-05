@@ -25,7 +25,7 @@ class MediaStorage
     return true if File.exist?(fname)
 
     # Inconsistent state detected, perfom a cleanup
-    @logger.debug "#{item[:filename]} found in the DB but not on the file system"
+    @logger.debug "#{item[:filename]} found in the DB but not on the filesystem"
     remove item
     false
   end
@@ -44,7 +44,7 @@ class MediaStorage
     Dir.rmdir(dir) if Dir.exist?(dir) && Dir.empty?(dir)
   end
 
-  def get_all
+  def all
     @items.all
   end
 
@@ -100,7 +100,7 @@ class MediaStorage
       update_ctime(f, remote_item)
       f.write(remote_file)
       @logger.debug "File written to #{filename}"
-      
+
       put_db(remote_item)
     end
   end
