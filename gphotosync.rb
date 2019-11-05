@@ -32,6 +32,11 @@ OptionParser.new do |opts|
   opts.on('-l', '--logfile FILE', 'Log to FILE instead of STDOUT') do |filename|
     options.logfile = filename
   end
+
+  opts.on('-v', '--verbosity LEVELNUMBER', Numeric,
+    'Set verbosity to LEVELNUMBER: DEBUG (0), WARN, ERROR, FATAL, UNKNOWN (5)') do |level|
+      options.loglevel = level
+  end
 end.parse!
 
 LibrarySync.new(options).run
