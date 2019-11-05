@@ -64,13 +64,4 @@ class LibrarySync
   end
 end
 
-gphoto = GooglePhoto.new(options)
-storage = MediaStorage.new(options)
-
-lsync = LibrarySync.new(options)
-lsync.run
-
-# gphoto.request_all_media
-
-# storage = MediaStorage.new(gl, storage_path)
-# storage.sync_state
+LibrarySync.new(options).run
