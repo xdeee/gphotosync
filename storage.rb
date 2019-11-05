@@ -1,88 +1,40 @@
 # frozen_string_literal: true
 
 require 'sequel'
-require 'net/http'
-require 'logger'
-require 'date'
-require 'time'
+require_relative 'options.rb'
 
 ##
 # MediaStorage class
-# initialize with storage path
 class MediaStorage
-  DB = Sequel.connect('sqlite://db.sqlite')
+  def initialize(options)
+    @options = options
 
-  ##
-  # That's here for debug reasons
-  attr_reader :items
+    @path = @options.storage_path
+    Dir.mkdir @path unless Dir.exist? @path
 
-  def initialize(path, logger = nil)
-    @path = path
-    Dir.mkdir path unless Dir.exist? path
+    @logger = Logger.new(@options.logfile, level: @options.loglevel)
 
-    @logger = logger
-    @logger ||= Logger.new(STDOUT, level: Logger::DEBUG)
-
-    setup_db
+    setup_db(@options.profile_path)
   end
 
-  def sync_state(remote_items)
-    remote_items.each do |item|
-      store item
-    end
+  def exist?(item)
+    item = @items.where(id: item[:id]).first
+    return false if item.nil?
 
-    ids = remote_items.map { |i| i[:id] }
-    items_to_delete = @items.all.reject { |i| ids.include? i[:id] }
-    @logger.info "#{items_to_delete.length} item(s) going to be deleted"
-    items_to_delete.each { |i| remove_local_item(i) }
-  end
+    fname = File.join(@path, item[:filename])
+    return true if File.exist?(fname)
 
-  ##
-  # Private methods
-  ##
-  private
-
-  def setup_db
-    DB.create_table? :items do
-      String :id, primary_key: true, index: true, unique: true
-      String :filename
-    end
-
-    @items = DB[:items]
+    # Inconsistent state detected, perfom a cleanup
+    @logger.debug "#{item[:filename]} found in the DB but not on the file system"
+    remove item
+    false
   end
 
   def store(remote_item)
-    @logger.debug "Checking item #{remote_item[:filename]}"
-
-    local_item = get_local_item(remote_item[:id])
-    return unless local_item.nil?
-
-    @logger.debug "Item #{remote_item[:filename]} not found locally"
-    store_file(remote_item)
+    store_file remote_item
   end
 
-  def add_local_item(item)
-    @logger.debug "Putting #{item[:filename]} in the DB..."
-    result = @items.insert(
-      id: item[:id],
-      filename: item[:filename]
-    )
-    @logger.debug "Item ##{result} has been stored"
-  end
-
-  def get_local_item(id)
-    item = @items.where(id: id).first
-    return nil if item.nil?
-
-    fname = File.join(@path, item[:filename])
-    return item if File.exist?(fname)
-
-    @logger.debug "#{item[:filename]} found in the DB but not on the file system"
-    remove_local_item(item)
-    nil
-  end
-
-  def remove_local_item(local_item)
+  def remove(local_item)
     @logger.debug "Removing local item #{local_item[:filename]}"
     @items.where(id: local_item[:id]).delete
     filename = File.join(@path, local_item[:filename])
@@ -92,9 +44,37 @@ class MediaStorage
     Dir.rmdir(dir) if Dir.exist?(dir) && Dir.empty?(dir)
   end
 
-  def store_file(remote_item)
-    filename = prepare_folder(remote_item)
+  def get_all
+    @items.all
+  end
 
+  # Private methods
+  private
+
+  def setup_db(path = './')
+    db = Sequel.connect "sqlite://#{path}/db.sqlite"
+    db.create_table? :items do
+      String :id, primary_key: true, index: true, unique: true
+      String :filename
+    end
+
+    @items = db[:items]
+  end
+
+  def put_db(remote_item)
+    local_item = remote_item.slice(:id, :filename)
+
+    fname = File.join(get_year(remote_item), remote_item[:filename])
+    local_item[:filename] = fname
+    @logger.debug "Putting #{remote_item[:filename]} in the DB..."
+    result = @items.insert(
+      id: local_item[:id],
+      filename: local_item[:filename]
+    )
+    @logger.debug "Item ##{result} has been stored"
+  end
+
+  def get_remote_file(remote_item)
     @logger.info "Requesting remote file #{remote_item[:filename]}"
     option = remote_item[:mimeType].start_with?('video') ? '=dv' : '=d'
     resp = Net::HTTP.get_response(URI(remote_item[:baseUrl] + option))
@@ -105,18 +85,23 @@ class MediaStorage
 
     unless resp.is_a?(Net::HTTPSuccess)
       @logger.error "Error code #{resp.code}\n#{resp.body}"
-      return
+      return nil
     end
+    resp.body
+  end
+
+  def store_file(remote_item)
+    remote_file = get_remote_file(remote_item)
+    return if remote_file.nil?
+
+    filename = prepare_folder(remote_item)
 
     File.open(filename, 'wb') do |f|
       update_ctime(f, remote_item)
-      f.write(resp.body)
+      f.write(remote_file)
       @logger.debug "File written to #{filename}"
-      local_item = remote_item.slice(:id, :filename)
-
-      fname = File.join(get_year(remote_item), remote_item[:filename])
-      local_item[:filename] = fname
-      add_local_item(local_item)
+      
+      put_db(remote_item)
     end
   end
 
