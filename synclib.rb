@@ -1,3 +1,10 @@
+# frozen_string_literal: true
+
+require 'logger'
+require_relative 'gplib.rb'
+require_relative 'storage.rb'
+require_relative 'options.rb'
+
 # Top-level class doing all the logic
 class LibrarySync
   def initialize(options)
@@ -8,7 +15,7 @@ class LibrarySync
   end
 
   def run
-    all_items = @gphoto.request_all_media{|items| sync items}
+    all_items = @gphoto.request_all_media { |items| sync items }
     sync_deleted all_items
   end
 
@@ -18,6 +25,7 @@ class LibrarySync
     items.each do |item|
       next if @storage.exist? item
       next if not_ready item
+
       @storage.store item
     end
   end
@@ -30,6 +38,7 @@ class LibrarySync
   end
 
   def not_ready(item)
-    item[:mimeType].start_with?('video') && item.dig(:mediaMetadata, :video, :status) != 'READY'
+    item[:mimeType].start_with?('video') &&
+      item.dig(:mediaMetadata, :video, :status) != 'READY'
   end
 end
