@@ -13,7 +13,7 @@ class GooglePhoto
 
   # Other API constants
   SCOPE = ['https://www.googleapis.com/auth/photoslibrary.readonly'].freeze
-  QUERY_PAGESIZE = 10
+  QUERY_PAGESIZE = 100
   OOB_URI = 'urn:ietf:wg:oauth:2.0:oob'
   CREDENTIALS_PATH = './secret/credentials.json'
 
