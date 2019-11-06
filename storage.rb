@@ -97,12 +97,13 @@ class MediaStorage
     filename = prepare_folder(remote_item)
 
     File.open(filename, 'wb') do |f|
-      update_ctime(f, remote_item)
+      #update_ctime(f, remote_item)
       f.write(remote_file)
       @logger.debug "File written to #{filename}"
 
       put_db(remote_item)
     end
+    update_ctime(filename, remote_item)
   end
 
   def prepare_folder(remote_item)
@@ -115,7 +116,8 @@ class MediaStorage
 
   def update_ctime(file, item)
     date = Time.parse item[:mediaMetadata][:creationTime]
-    File.utime(file.mtime, date, file)
+    mdate = File.mtime file
+    File.utime(mdate, date, file)
   rescue ArgumentError, NoMethodError
     ''
   end
