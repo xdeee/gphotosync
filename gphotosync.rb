@@ -39,4 +39,11 @@ OptionParser.new do |opts|
   end
 end.parse!
 
+lock =  File.new("#{File.dirname(__FILE__)}/run.lock", "w")
+exit unless lock.flock( File::LOCK_NB | File::LOCK_EX )
+
 LibrarySync.new(options).run
+
+FileUtils.rm lock
+lock.close
+
