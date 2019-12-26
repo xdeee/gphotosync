@@ -15,7 +15,7 @@ class GooglePhoto
   SCOPE = ['https://www.googleapis.com/auth/photoslibrary.readonly'].freeze
   QUERY_PAGESIZE = 100
   OOB_URI = 'urn:ietf:wg:oauth:2.0:oob'
-  CREDENTIALS_PATH = './secret/credentials.json'
+  CREDENTIALS_PATH = File.dirname(__FILE__)+'/secret/credentials.json'
 
   attr_reader :media_items
 
